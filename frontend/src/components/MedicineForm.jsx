@@ -41,9 +41,44 @@ const MedicineForm = ({ onSuccess }) => {
         alert("User not found. Please log in again.");
         return;
       }
-      const data = { ...formData, userId: user._id };
-      await addMedicine(data);
-      alert("Medicine added successfully!");
+
+      // 1️⃣ Add medicine
+      const medicineData = { ...formData, userId: user._id };
+      const res = await addMedicine(medicineData);
+      const medicineId =res.data.data._id;
+
+      // 2️⃣ Add reminders for each time
+      for (const t of formData.time) {
+        const start = new Date(formData.startDate);
+        const end = formData.endDate ? new Date(formData.endDate) : start;
+
+        const step = formData.frequency === "daily" ? 1 : formData.frequency === "weekly" ? 7 : 0;
+
+        for (let d = new Date(start); step > 0 && d <= end; d.setDate(d.getDate() + step)) {
+          const [hours, minutes] = t.split(":");
+          const reminderTime = new Date(d);
+          reminderTime.setHours(hours, minutes, 0, 0);
+
+          await addReminder({
+            medicineId,
+            time: reminderTime.toISOString(),
+          });
+        }
+
+        // For "as needed", just create one reminder per time
+        if (formData.frequency === "as needed") {
+          const [hours, minutes] = t.split(":");
+          const reminderTime = new Date(start);
+          reminderTime.setHours(hours, minutes, 0, 0);
+
+          await addReminder({
+            medicineId,
+            time: reminderTime.toISOString(),
+          });
+        }
+      }
+
+      alert("Medicine and reminders added successfully!");
       setFormData({
         medicineName: "",
         dosage: "",
