@@ -9,7 +9,6 @@ const MedicineForm = ({ onSuccess, medicine }) => {
     time: [""],
     startDate: "",
     endDate: "",
-    syncCalendar: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -31,7 +30,6 @@ const MedicineForm = ({ onSuccess, medicine }) => {
         endDate: medicine.endDate
           ? new Date(medicine.endDate).toISOString().split("T")[0]
           : "",
-        syncCalendar: medicine.syncCalendar || false,
       });
       setIsEditing(true);
     }
@@ -153,6 +151,7 @@ const MedicineForm = ({ onSuccess, medicine }) => {
             await addReminder({
               medicineId,
               time: reminderTime.toISOString(),
+              status: "pending",
             });
           }
         }
@@ -166,7 +165,6 @@ const MedicineForm = ({ onSuccess, medicine }) => {
         time: [""],
         startDate: "",
         endDate: "",
-        syncCalendar: false,
       });
       setIsEditing(false);
 
@@ -283,21 +281,6 @@ const MedicineForm = ({ onSuccess, medicine }) => {
             className="w-full border rounded-lg p-2 focus:ring focus:ring-blue-300"
           />
         </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="syncCalendar"
-          checked={formData.syncCalendar}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, syncCalendar: e.target.checked }))
-          }
-          className="h-4 w-4"
-        />
-        <label htmlFor="syncCalendar" className="text-gray-700 font-medium">
-          Add to Google Calendar
-        </label>
       </div>
 
       <button
