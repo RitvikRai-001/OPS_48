@@ -7,8 +7,9 @@ import {User} from "../model/user.model.js";
 // Function to send notification
 async function sendNotification(token, title, body) {
   const message = {
+      token,
     notification: { title, body },
-    token,
+  
   };
   try {
     await admin.messaging().send(message);
