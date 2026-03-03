@@ -46,7 +46,6 @@ const getDoctorDashboard = asyncHandler(async (req, res) => {
         );
     }
 
-    // Get patients data - ONLY accepted patients
     const patients = await User.find({ _id: { $in: patientIds } })
         .select("-password");
 
@@ -91,10 +90,7 @@ const getDoctorDashboard = asyncHandler(async (req, res) => {
             stats,
             todaySchedule: todayReminders,
             patientList: patientAdherence,
-            // doctorInfo: {
-            //     username: doctor.username,
-            //     doctorCode: doctor.doctorCode
-            // }
+        
         }, "Doctor dashboard data fetched successfully")
     );
 });

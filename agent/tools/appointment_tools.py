@@ -22,10 +22,12 @@ def make_appointment_tools(token: str):
 
             lines = []
             for i, d in enumerate(doctors, 1):
-              spec = d.get('specialization') or 'General Physician'
-              exp = d.get('experience')
-              exp_text = f" | {exp} yrs experience" if exp else ""
-              lines.append(f"{i}. Dr. {d.get('username').title()} — {spec}{exp_text} | ID: {d.get('_id')}")
+                spec = d.get("specialization") or "General Physician"
+                exp = d.get("experience")
+                exp_text = f" | {exp} yrs experience" if exp else ""
+                lines.append(
+                    f"{i}. Dr. {d.get('username', '').title()} — {spec}{exp_text} | ID: {d.get('_id')}"
+                )
             return "DOCTORS_LIST:\n" + "\n".join(lines)
 
         except Exception as e:
@@ -40,7 +42,8 @@ def make_appointment_tools(token: str):
         No input needed — pass an empty string.
         """
         try:
-            result = api_get("/api/v1/doctor-request/getappointments", token)
+            # Uses patient-facing endpoint
+            result = api_get("/api/v1/doctor-request/myappointments", token)
             appointments = result.get("data", [])
 
             if not appointments:
@@ -50,9 +53,15 @@ def make_appointment_tools(token: str):
             for a in appointments:
                 doctor = a.get("doctorId", {})
                 doc_name = doctor.get("username", "Unknown doctor") if isinstance(doctor, dict) else "Unknown doctor"
+                date_str = a.get("appointmentDate", "Unknown date")
+                # Format date nicely if possible
+                try:
+                    dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                    date_str = dt.strftime("%B %d, %Y at %I:%M %p")
+                except Exception:
+                    pass
                 lines.append(
-                    f"- {a.get('appointmentDate', 'Unknown date')} | "
-                    f"Dr. {doc_name} | "
+                    f"- {date_str} | Dr. {doc_name.title()} | "
                     f"Reason: {a.get('problem', 'Not specified')} | "
                     f"Status: {a.get('status', 'Unknown')}"
                 )
@@ -70,14 +79,18 @@ def make_appointment_tools(token: str):
         No input needed — pass an empty string.
         """
         try:
-            result = api_get("/api/v1/doctor-request/getappointments", token)
+            # Uses patient-facing endpoint
+            result = api_get("/api/v1/doctor-request/myappointments", token)
             appointments = result.get("data", [])
 
             now = datetime.now(timezone.utc)
             upcoming = [
                 a for a in appointments
                 if a.get("appointmentDate") and
-                datetime.fromisoformat(a["appointmentDate"].replace("Z", "+00:00")) > now
+                datetime.fromisoformat(
+                    a["appointmentDate"].replace("Z", "+00:00")
+                ) > now
+                and a.get("status") not in ("CANCELLED", "COMPLETED")
             ]
 
             if not upcoming:
@@ -87,12 +100,20 @@ def make_appointment_tools(token: str):
             doctor = apt.get("doctorId", {})
             doc_name = doctor.get("username", "your doctor") if isinstance(doctor, dict) else "your doctor"
 
+            # Format date nicely
+            date_str = apt.get("appointmentDate", "")
+            try:
+                dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                date_str = dt.strftime("%B %d, %Y at %I:%M %p")
+            except Exception:
+                pass
+
             return (
                 f"Your next appointment:\n"
-                f"  📅 Date: {apt.get('appointmentDate')}\n"
-                f"  👨‍⚕️ Doctor: Dr. {doc_name}\n"
+                f"  📅 Date: {date_str}\n"
+                f"  👨‍⚕️ Doctor: Dr. {doc_name.title()}\n"
                 f"  📋 Reason: {apt.get('problem', 'Not specified')}\n"
-                f"  Status: {apt.get('status')}"
+                f"  Status: {apt.get('status', 'PENDING')}"
             )
 
         except Exception as e:
@@ -113,14 +134,13 @@ def make_appointment_tools(token: str):
             return "Missing required fields: doctorId, appointmentDate, and problem are all required."
 
         try:
-            from datetime import datetime
-            try:
-                appt_dt = datetime.fromisoformat(appointmentDate)
-                if appt_dt < datetime.now():
-                 return "⚠️ The appointment date you provided is in the past. Please provide a future date."
-            except  ValueError:
-                return "⚠️ Invalid date format. Please use a format like '2026-03-20T10:00:00'."
-        
+            appt_dt = datetime.fromisoformat(appointmentDate)
+            if appt_dt < datetime.now():
+                return "⚠️ The appointment date you provided is in the past. Please provide a future date."
+        except ValueError:
+            return "⚠️ Invalid date format. Please use a format like '2026-03-20T10:00:00'."
+
+        try:
             result = api_post(
                 "/api/v1/doctor-request/createAppointment",
                 token,
@@ -133,14 +153,21 @@ def make_appointment_tools(token: str):
             appt = result.get("data", {})
             doctor_field = appt.get("doctorId", {})
             confirmed_name = (
-            doctor_field.get("username") if isinstance(doctor_field, dict) else None
+                doctor_field.get("username") if isinstance(doctor_field, dict) else None
             ) or "your doctor"
 
+            # Format date nicely
+            date_str = appt.get("appointmentDate", appointmentDate)
+            try:
+                dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                date_str = dt.strftime("%B %d, %Y at %I:%M %p")
+            except Exception:
+                pass
 
             return (
                 f"✅ Appointment booked successfully!\n"
-                f"  👨‍⚕️ Doctor: Dr. {confirmed_name}\n"
-                f"  📅 Date: {appt.get('appointmentDate', appointmentDate)}\n"
+                f"  👨‍⚕️ Doctor: Dr. {confirmed_name.title()}\n"
+                f"  📅 Date: {date_str}\n"
                 f"  📋 Reason: {appt.get('problem', problem)}\n"
                 f"  Status: PENDING — waiting for doctor confirmation."
             )
